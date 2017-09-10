@@ -1,0 +1,281 @@
+*********************************************************************************************************
+* Program Name: Lab4                                                                                    *
+* Student Names: Duncan Scott Martinson & John Payton                                                   *
+* Semester: Spring 2017                                                                                 *
+* Class: COSC 30403                                                                                     *
+* Instructor: Dr. James Comer                                                                           *
+* Due Date: 2/28/2017                                                                                   *
+*                                                                                                       *
+* Program Overview:                                                                                     *
+*   This SNOBOL program uses a text file to input data into a linked list of                            *
+*   Employees and execute commands in order to manipulate the list. After every                         *
+*   command, the program writes information about the execution to a separate text file.                *
+*   After all the data from the file has been read, the program terminates.                             *
+*                                                                                                       *
+* Input:                                                                                                *
+*   The program requires formatted data in a text file entitled "Lab4Data.txt"                          *
+*                                                                                                       *
+* Output:                                                                                               *
+*   The program outputs a data file entitled "Lab4Ans.txt" containing information                       *
+*   about the program's execution.                                                                      *
+*                                                                                                       *
+* Program Limitations:                                                                                  *
+*   1) The program does not allow for real time user interaction, and the output file                   *
+*   is overwritten after every execution.                                                               *
+*   2) Mild issues with output formatting after the update functions                                    *
+*                                                                                                       *
+*                                                                                                       *
+* Significant Program Variables:                                                                        *
+*   in - the identifier for the input file                                                              * 
+*   out - the identifier for the output file                                                            *
+*   cmd - a string that stores the first two characters read from a line of input. This is used to      *
+*       determine the appropriate function to execute.                                                  *
+*   head- an Employee node that serves as the list head. Used to reference the linked list.             *
+*   current- an Employee node pointer used in almost every procedure. Is used to traverse the list and  *
+*           analyze data, manipulating it if need be.                                                   *
+*********************************************************************************************************
+
+
+*Prepare the I/O
+	INPUT('in',1,,'Lab4Data.txt')	:s(inOk)
+	OUTPUT = 'Could not find file'	:(end)
+inOk	OUTPUT('out',2,,'Lab4Ans.txt')	:s(outOk)
+	OUTPUT ='Could not create file'	:(end)
+outOk
+*Define the node structure
+	data('employee(id,name,dept,title,pay,next)')
+*Initialize the list
+	head = employee(0,'','','',0.0,'')
+*Define the functions
+	define('insert(newEmp)current')
+ 	define('printEmp(emp)')
+ 	define('printAll()current')
+ 	define('delete(target)current')
+  define('uName(target,newName)current')
+  define('uDept(target,dpt)current')
+ 	define('uRate(target,newRate)current')
+  define('uTitle(target,newTitle)current')
+  define('printID(target)current')
+ 	define('printDept(target)current,found')	:(mainLoop)
+
+*The insert function takes a employee node and inserts it into the list.
+*It uses a pointer to the header node and checks to see if there is an employee
+*to the right. If there is, it checks to see if the id of the new node is less than
+*the id of that node, inserting if it is and iterating if it's not. When it gets to 
+*the end of the list, it inserts the node at the end.  
+
+insert
+	current = .head
+insertLoop
+	ident(next($current))	:f(insert.nextStep)
+	next(newEmp) = next($current)
+	next($current) = newEmp	:(insert.done)
+insert.nextStep
+	LT(id(newEmp), id(next($current)))	:F(insert.iterate)
+	next(newEmp) = next($current)
+	next($current) = newEmp	:(insert.done)
+insert.iterate
+	current = .next($current)	:(insertLoop)
+insert.done
+	out = 'Employee #' id(newEmp) ' inserted.' :(return)
+
+*the printEmp function is a helper function used in all of the functions that print
+*employee data to the output file. It takes an employee node and outputs all of its info
+printEmp
+	out = id(emp) ' ' name(emp) ' ' dept(emp) ' ' title(emp) ' ' pay(emp)  :(return)
+
+*the printAll method goes through the list and prints out all of the info of each employee.
+*It uses a pointer to the current node and checks to see if it is at the end of the list. This
+*is to avoid referencing a null string. If it is not at the end of the string, it calls the printEmp
+*helper function to print out that employee's info, and then iterates down the list. It returns when
+*it is at the end of the list.
+
+printAll
+	current = .next(head)
+	out = 'BEGIN PRINT ALL:'
+printAllLoop
+	ident($current,'')	:S(printAll.done)
+	printEmp($current)
+	current = .next($current)	:(printAllLoop)
+printAll.done
+	out = 'END PRINT ALL.'  :(return)
+
+*The delete function takes the id number of a the employee targeted for deletion and 
+*searches the list for it. Like the insert method, it looks one down the list to aid in
+*branching around the node to be deleted. When if it finds a node with the matching id, it 
+*branches around it so that the node is outside of the list, and will be destroyed later by
+*SNOBOL's built in garbage collection. If it reaches the end of the list, it alerts the user
+*that it did not find the node and returns
+
+delete
+	current = .head
+deleteLoop
+	ident(next($current))	:S(deleteLoop.end)
+	ident(id(next($current)),target)	:F(deleteIterate)
+	next($current) = (next(next($current)))
+  out = 'Employee #' target ' deleted.'  :(return)
+deleteIterate
+	current = .next($current)	:(deleteLoop)
+deleteLoop.end
+	out = 'DE ERROR: Employee #' target ' not found'  :(return)
+
+*The uName function takes a string containing the new name of a node, and the id of the node 
+*targeted for modification. It then uses a pointer to the current node to traverse through the list
+*and looks to see if the node to the right of the current one's id is equal to the target id. If it is
+*it replaces the name of the node with the new name and returns. Otherwise, it traverses down the list.
+*If the end of the list is reached, the function alerts the user and returns.
+	
+uName
+	current = head
+uNameLoop
+	ident(id(next(current)), target)	:F(uNameNext)
+	name(next(current)) = newName
+	out = 'Employee #' target ' name changed to ' TRIM(newName) '.'	:(return)
+uNameNext	
+	ident(next(current))	:S(uNameLoop.end)
+	current = next(current)	:(uNameLoop)
+uNameLoop.end
+	out = 'UN ERROR: Employee #' target ' not found.'  :(return)
+
+*The uDept function takes a string containing the new department of a node, and the id of the node 
+*targeted for modification. It then uses a pointer to the current node to traverse through the list
+*and looks to see if the node to the right of the current one's id is equal to the target id. If it is
+*it replaces the department of the node with the new name and returns. Otherwise, it traverses down the list.
+*If the end of the list is reached, the function alerts the user and returns.
+	
+uDept
+	current = head
+uDeptLoop
+	ident(id(next(current)), target)	:F(uDeptNext)
+	dept(next(current)) = dpt
+	out = 'Employee #' target ' department changed to ' TRIM(dpt) '.'	:(return)
+uDeptNext
+	ident(next(current))	:S(uDeptLoop.end)
+	current = next(current)	:(uDeptLoop)
+uDeptLoop.end
+	out = 'UD ERROR: Employee #' target ' not found.' :(return)
+
+*The uRate function takes a string containing the new payrate of a node, and the id of the node 
+*targeted for modification. It then uses a pointer to the current node to traverse through the list
+*and looks to see if the node to the right of the current one's id is equal to the target id. If it is
+*it replaces the rate of the node with the new rate and returns. Otherwise, it traverses down the list.
+*If the end of the list is reached, the function alerts the user and returns.
+
+uRate
+	current = head
+uRateLoop
+	ident(id(next(current)), target)	:F(uRateNext)
+	pay(next(current)) = TRIM(newRate)
+	out = 'Employee #' target ' pay changed to ' pay(next(current))	:(return)
+uRateNext
+	ident(next(current))	:S(uRateLoop.end)
+	current = next(current)	:(uRateLoop)
+uRateLoop.end
+	out = 'UR ERROR: Employee #' target ' not found.' :(return)
+
+*The uTitle function takes a string containing the new title of a node, and the id of the node 
+*targeted for modification. It then uses a pointer to the current node to traverse through the list
+*and looks to see if the node to the right of the current one's id is equal to the target id. If it is
+*it replaces the title of the node with the new title and returns. Otherwise, it traverses down the list.
+*If the end of the list is reached, the function alerts the user and returns.
+
+uTitle
+	current = head
+uTitleLoop
+	ident(id(next(current)), target)	:F(uTitleNext)
+	title(next(current)) = newTitle
+	out = 'Employee #' target ' title  changed to ' TRIM(newTitle)	:(return)
+uTitleNext
+	ident(next(current))	:S(uTitleLoop.end)
+	current = next(current)	:(uTitleLoop)
+uTitleLoop.end
+	out = 'UT ERROR: Employee #' target ' not found.' :(return)
+
+*The printID function takes the id of the target node and searches the list for it. It uses a pointer to the current node
+*and checks if its id is the same as the target id. If it is, it calls the helper function printEmp to print out its info
+*and then returns. Otherwise, it traverses down the list. If the end of the list is reached, it alerts the user and returns.
+
+printID
+	current = next(head)
+printIDLoop
+	ident(current)	:S(printIDLoop.end)
+	ident(id(current), target)	:F(printIDNext)
+	out = 'Printing Employee #' target '...'
+  printEmp(current)  :(return)
+printIDNext
+	current = next(current)  :(printIDLoop)
+printIDLoop.end
+	out = "PI ERROR: Employee #" target " not found."  :(return)
+
+*The printDept function takes the name of a department and searches the list for every employee in it. It uses a pointer to the current
+*node and checks if its department is the same as the target department. If it is, it calls the helper function printEmp to print out its info
+*and then traverses. Otherwise, it traverses down the list. If the end of the list is reached, it checks to see if any employees were found
+*by checking the found variable, which flips from 'f' to 't' whenever a node is printed. If it does not equal 't' at the end of the
+*function, it alerts the user and returns.
+
+printDept
+	current = head
+	found = 'f'
+	out = 'BEGIN PRINT DEPARTMENT: ' TRIM(dept)
+printDeptLoop
+	ident(current)	:S(printDeptLoop.end)
+	ident(TRIM(target), TRIM(dept(current)))	:F(printDeptLoop.next)
+	printEmp(current)
+  found = 't'
+printDeptLoop.next
+	current = next(current)	:(printDeptLoop)
+printDeptLoop.end
+	ident(found, 't')	:f(notFound)s(done)
+notFound
+	out = 'No employees found.'
+done	out = 'END PRINT DEPARTMENT.' :(return)
+	
+	
+*Main Program
+mainLoop
+*Read in a line of data
+	line = TRIM(in)	:F(eof)
+	line len(2) . cmd rem . strng
+
+*"Case Statement" equivalent
+	ident(cmd, 'IN')	:S(call_insert)
+	ident(cmd, 'PA')	:S(call_printAll)
+	ident(cmd, 'DE')	:S(call_delete)
+	ident(cmd, 'UR')	:S(call_uRate)
+	ident(cmd, 'UN')	:S(call_uName)
+	ident(cmd, 'UD')	:S(call_uDept)
+	ident(cmd, 'UT')	:S(call_uTitle)
+	ident(cmd, 'PI')	:S(call_printID)
+	ident(cmd, 'PD')	:S(call_printDept)
+
+*Execute the proper instruction	
+call_insert
+	strng len(1) . blank len(8) . tempID len(1) . blank len(12) . tempName len(16) . tempDept len(18) . tempTitle len(5) . tempRate
+	newEmployee = employee(tempID, tempName, tempDept, tempTitle, tempRate)
+	insert(newEmployee)	:(mainLoop)
+call_printAll
+	printAll()	:(mainLoop)
+call_delete
+	strng len(1) . blank len(8) . tempID
+	delete(tempID)	:(mainLoop)
+call_uName
+	strng len(1) . blank len(8) . tempID len(29) . blank rem . tempName
+	uName(tempID, tempName)	:(mainLoop)
+call_uDept
+	strng len(1) . blank len(8) . tempID len(1) . blank len(12) . garbage len(16) . garbage rem . tempDept
+	uDept(tempID, tempDept)	:(mainLoop)
+call_uRate
+	strng len(1) . blank len(8) . tempID len(1) . blank  len(12) . garbage len(16) . garbage rem . tempRate
+	uRate(tempID, tempRate)	:(mainLoop)
+call_uTitle
+	strng len(1) . blank len(8) . tempID len(1) . blank len(12) . garbage len(16) . garbage rem . tempTitle
+	uTitle(tempID, tempTitle)	:(mainLoop)
+call_printID
+	strng len(1) . blank rem . tempID
+	printID(TRIM(tempID))	:(mainLoop)
+call_printDept
+	strng len(1) . blank rem . tempDept
+	printDept(tempDept)	:(mainLoop)
+eof	
+end
+	
